@@ -1,0 +1,107 @@
+// Export dialog: job summary, validation, filename and the actual PDF download.
+
+import { exportPdf, defaultFileName, PdfExportError } from './pdf-export.js';
+import { actions } from './state.js';
+import { icon, toast, $ } from './ui.js';
+import { escapeXml, formatSize, formatLength, plural } from './utils.js';
+import { PAGE_FORMATS } from './model.js';
+
+export function initExportDialog(ctx) {
+  const { store } = ctx;
+  const dlg = $('#exportDialog');
+  const body = $('#exportBody');
+  const btn = $('#exportGo');
+  const nameInput = $('#exportName');
+  const status = $('#exportStatus');
+  let busy = false;
+
+  const render = () => {
+    const p = store.project;
+    const sheet = ctx.getSheet();
+    const { stats } = sheet;
+    const overflow = p.stickers.filter((s) => ctx.getLayout(s).overflow);
+    const glyphs = p.stickers.filter((s) => ctx.getLayout(s).warnings.some((w) => w.code === 'glyphs'));
+    const fmt = PAGE_FORMATS[p.page.format]?.label || p.page.format;
+
+    const rows = [
+      ['Формат', `${fmt}, ${formatSize(stats.pageWidth, stats.pageHeight)}, ${p.page.orientation === 'portrait' ? 'книжная' : 'альбомная'}`],
+      ['Страниц', String(stats.pageCount)],
+      ['Наклеек', `${stats.placed} ${plural(stats.placed, ['копия', 'копии', 'копий'])} (${p.stickers.length} ${plural(p.stickers.length, ['вид', 'вида', 'видов'])})`],
+      ['Линии реза', p.cutLines.enabled ? `${p.cutLines.style === 'solid' ? 'сплошные' : 'пунктир'}, ${formatLength(p.cutLines.width)}${p.cutLines.offset ? `, отступ ${formatLength(p.cutLines.offset)}` : ''}` : 'не печатаются'],
+    ];
+    const issues = [];
+    sheet.errors.forEach((e) => issues.push(['error', `${e.message} ${e.hint || ''}`]));
+    if (!p.stickers.length) issues.push(['error', 'В проекте нет наклеек. Добавьте хотя бы одну.']);
+    if (overflow.length) issues.push(['warn', `Текст не помещается в ${overflow.length} ${plural(overflow.length, ['наклейку', 'наклейки', 'наклеек'])}: ${overflow.slice(0, 3).map((s) => `«${s.text.slice(0, 24)}»`).join(', ')}. Лишнее будет обрезано по контуру.`]);
+    if (glyphs.length) issues.push(['warn', `Некоторые символы не поддерживаются шрифтом и не будут напечатаны (${glyphs.length} ${plural(glyphs.length, ['наклейка', 'наклейки', 'наклеек'])}).`]);
+    sheet.warnings.forEach((w) => issues.push(['warn', w.message]));
+
+    body.innerHTML = `
+      <dl class="stats stats--export">${rows.map(([k, v]) => `<div class="stats__row"><dt>${k}</dt><dd>${escapeXml(v)}</dd></div>`).join('')}</dl>
+      ${issues.map(([k, m]) => `<div class="callout callout--${k}" role="${k === 'error' ? 'alert' : 'note'}">${icon('alert', { size: 16 })}<span>${escapeXml(m)}</span></div>`).join('')}
+      <label class="switch switch--inline">
+        <span class="switch__text"><span class="field-label">Линии реза</span><span class="field-hint">Тонкие линии по контуру наклеек</span></span>
+        <input type="checkbox" role="switch" id="exportCuts" ${p.cutLines.enabled ? 'checked' : ''}>
+        <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+      </label>
+      <div class="print-hint">
+        ${icon('print', { size: 18 })}
+        <div>
+          <p><strong>Для сохранения размеров печатайте PDF в масштабе 100% / Actual Size. Отключите Fit to page / Подогнать под страницу в настройках принтера.</strong></p>
+          <p class="field-hint">Итоговая точность зависит также от принтера и его непечатаемых полей. Проверьте размер первой наклейки линейкой.</p>
+        </div>
+      </div>`;
+    const blocked = sheet.errors.length > 0 || !p.stickers.length;
+    btn.disabled = blocked || busy;
+    btn.setAttribute('aria-disabled', String(blocked));
+    $('#exportCuts', body).addEventListener('change', (e) => actions.setProject(store, 'cutLines.enabled', e.target.checked, false));
+  };
+
+  const setBusy = (v) => {
+    busy = v;
+    btn.disabled = v;
+    btn.classList.toggle('is-loading', v);
+    btn.querySelector('.btn__label').textContent = v ? 'Создаём PDF…' : 'Скачать PDF';
+    dlg.setAttribute('aria-busy', String(v));
+  };
+
+  btn.addEventListener('click', async () => {
+    if (busy) return;
+    let name = nameInput.value.trim() || defaultFileName();
+    if (!/\.pdf$/i.test(name)) name += '.pdf';
+    name = name.replace(/[\\/:*?"<>|]+/g, '-');
+    status.innerHTML = '';
+    setBusy(true);
+    try {
+      const sheet = ctx.getSheet();
+      const res = await exportPdf({ project: store.project, layout: sheet, getLayout: ctx.getLayout, fonts: ctx.fonts, title: store.project.name }, name);
+      // Brief success state on the button before the dialog closes.
+      setBusy(false);
+      btn.classList.add('is-done');
+      btn.querySelector('.btn__label').textContent = 'Готово';
+      await new Promise((r) => setTimeout(r, 450));
+      btn.classList.remove('is-done');
+      dlg.close();
+      toast(`PDF сохранён: ${name}, ${res.pages} ${plural(res.pages, ['страница', 'страницы', 'страниц'])}`, { type: 'success', timeout: 5000 });
+    } catch (err) {
+      const msg = err instanceof PdfExportError ? err.message : `Не удалось создать PDF: ${err.message || err}`;
+      status.innerHTML = `<div class="callout callout--error" role="alert">${icon('alert', { size: 16 })}<span>${escapeXml(msg)}</span></div>`;
+      console.error(err);
+    } finally {
+      setBusy(false);
+      render();
+    }
+  });
+
+  store.subscribe((cur, prev) => { if (dlg.open && cur.doc.project !== prev.doc.project) render(); });
+
+  return {
+    open() {
+      nameInput.value = defaultFileName();
+      status.innerHTML = '';
+      render();
+      dlg.showModal();
+      btn.disabled ? $('#exportCancel').focus() : btn.focus();
+    },
+  };
+}
