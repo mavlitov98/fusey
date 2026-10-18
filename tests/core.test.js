@@ -5,7 +5,7 @@ import { parsePath, rectD } from '../js/path.js';
 import { ICONS } from '../js/icons.js';
 import { createProject, createSticker, pageSize, normalizeProject, demoProject } from '../js/model.js';
 import { BUILTIN_TEMPLATES, findTemplate, CATEGORIES } from '../js/templates.js';
-import { computeLayout, cutSegments } from '../js/layout-engine.js';
+import { computeLayout, cutSegments, orderCopies, effectiveCopyOrder, copyKey } from '../js/layout-engine.js';
 import { layoutSticker, wrapText } from '../js/sticker-layout.js';
 import { nodeFonts } from './helpers.js';
 
@@ -275,4 +275,34 @@ test('no cut line ever crosses a sticker, in every strategy', () => {
       }
     }
   }
+});
+
+test('manual copy order: any single copy can take any slot', () => {
+  const a = createSticker(null, { id: 'a', width: 17.5, height: 50, quantity: 3 });
+  const b = createSticker(null, { id: 'b', width: 17.5, height: 50, quantity: 2 });
+  const p = createProject({ stickers: [a, b] });
+  assert.deepEqual(effectiveCopyOrder(p), ['a:0', 'a:1', 'a:2', 'b:0', 'b:1']);
+  const reading = (proj) => computeLayout(proj).pages.flatMap((pg) => pg.items.map(copyKey));
+  // b:1 between a:0 and a:1; equal heights, so the default grid layout honours it.
+  const manual = ['a:0', 'b:1', 'a:1', 'a:2', 'b:0'];
+  for (const strategy of ['grid', 'order', 'compact']) {
+    assert.deepEqual(reading({ ...p, layout: { ...p.layout, strategy, copyOrder: manual } }), manual, strategy);
+  }
+  // New copies follow the last copy of their sticker, unknown keys are ignored.
+  const grown = { ...p, stickers: [a, { ...b, quantity: 3 }] };
+  assert.deepEqual(effectiveCopyOrder({ ...grown, layout: { ...p.layout, copyOrder: [...manual, 'gone:0'] } }), ['a:0', 'b:1', 'a:1', 'a:2', 'b:0', 'b:2']);
+  assert.deepEqual(orderCopies([{ stickerId: 'x', copy: 0 }], null), [{ stickerId: 'x', copy: 0 }]);
+  // Survives a JSON round trip; garbage is dropped.
+  const raw = JSON.parse(JSON.stringify({ ...p, layout: { ...p.layout, copyOrder: [...manual, 42, 'bad'] } }));
+  assert.deepEqual(normalizeProject(raw).project.layout.copyOrder, manual);
+});
+
+test('manual order in grid keeps rows of one height', () => {
+  const tall = createSticker(null, { id: 't', width: 17.5, height: 50, quantity: 2 });
+  const short = createSticker(null, { id: 's', width: 40, height: 15, quantity: 1 });
+  const p = createProject({ stickers: [tall, short] });
+  const sheet = computeLayout({ ...p, layout: { ...p.layout, copyOrder: ['t:0', 's:0', 't:1'] } });
+  const items = sheet.pages[0].items;
+  const t0 = items.find((i) => copyKey(i) === 't:0'), t1 = items.find((i) => copyKey(i) === 't:1');
+  assert.equal(t0.y, t1.y, 'tall copies share their row');
 });

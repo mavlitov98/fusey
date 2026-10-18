@@ -4,6 +4,7 @@
 import { renderStickerGroup } from './svg-render.js';
 import { icon, on, isMobile, $ } from './ui.js';
 import { escapeXml, formatSize, clamp, plural } from './utils.js';
+import { initSheetDrag } from './sheet-drag.js';
 
 const PX_PER_MM = 96 / 25.4; // CSS reference pixel: 100% zoom ~ real size on a calibrated screen
 const MIN_SCALE = 0.4, MAX_SCALE = 30;
@@ -32,9 +33,12 @@ export function initPreview(ctx) {
   // While the workspace is hidden (mobile steps) rendering would use a 0-px viewport
   // and a wrong fit scale; skip it and render once when the workspace is shown.
   let dirty = false;
+  let drag = null; // drag-to-rearrange controller, created below
+  let freezeNext = false; // next render lands items where a drag already showed them: no FLIP
   const render = () => {
     if (!scroller.clientWidth) { dirty = true; return; }
     dirty = false;
+    drag?.cancel();
     const { project, ui } = store;
     const sheet = ctx.getSheet();
     const W = sheet.area.pageWidth, H = sheet.area.pageHeight;
@@ -112,6 +116,12 @@ export function initPreview(ctx) {
     const pos = new Map((page ? page.items : []).map((it) => [`${it.stickerId}:${it.copy}`, { x: it.x, y: it.y }]));
     const cuts = svg.querySelector('.cut-lines');
     const cutsD = cuts ? cuts.getAttribute('d') : null;
+    if (freezeNext) {
+      freezeNext = false;
+      if (cuts && cutsD !== lastCutsD) cuts.classList.add('is-fresh');
+      lastPos = pos; lastPage = pageIdx; lastCutsD = cutsD;
+      return;
+    }
     if (lastPage !== null && lastPage !== pageIdx) {
       svg.style.setProperty('--dir', pageIdx > lastPage ? 1 : -1);
       svg.classList.add('is-page-in');
@@ -294,6 +304,8 @@ export function initPreview(ctx) {
   // Safety net: a gesture interrupted by the system (app switch, notification) never strands the stage.
   window.addEventListener('blur', endPinch);
   document.addEventListener('visibilitychange', endPinch);
+
+  drag = initSheetDrag({ store, stage, scroller, getScale: () => scale, hooks: { freezeNextRender: () => { freezeNext = true; } } });
 
   /* ---------- Pages, modes, selection ---------- */
 

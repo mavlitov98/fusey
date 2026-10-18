@@ -211,6 +211,8 @@ details.is-closing > .section__head .section__caret { transform: rotate(-90deg);
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; align-items: start; }
 .note { font-size: var(--fs-xs); color: var(--text-3); line-height: 1.5; }
 .note:empty { display: none; }
+.manual-order { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 8px 8px 14px; border: 1px dashed var(--line-strong); border-radius: var(--r-lg); }
+.manual-order .btn { flex: none; }
 
 /* ---------- Template cards ---------- */
 
@@ -544,6 +546,28 @@ details.is-closing > .section__head .section__caret { transform: rotate(-90deg);
 .sheet.is-page-in { animation: page-in 260ms var(--ease-out) backwards; }
 .sheet .sel-outline, .sheet .sel-outline-bg, .sheet .warn-outline { animation: fade-in 150ms ease-out backwards; }
 .sheet .cut-lines.is-fresh { animation: fade-in 300ms ease-out backwards; }
+
+/* Drag to rearrange (sortable): the others slide aside live, the held copy's
+   placeholder shows the slot it will take, a floating ghost follows the pointer.
+   Cut lines and outlines hide while the order is in flux; they would be stale. */
+.sheet.is-design { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.sheet.is-sorting .sheet-anim { transition: transform 220ms var(--ease-out), opacity 160ms; }
+.sheet .sheet-anim.is-drag-source { opacity: 0.22; }
+.sheet .sheet-anim.is-pushed-out { opacity: 0.12; }
+.sheet .cut-lines, .sheet .overlay { transition: opacity 160ms; }
+.sheet.is-sorting .cut-lines, .sheet.is-sorting .overlay { opacity: 0; }
+.drag-ghost {
+  position: fixed; left: 0; top: 0; z-index: var(--z-toast); pointer-events: none;
+  filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.45)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  will-change: transform;
+}
+.drag-ghost > svg { display: block; animation: lift 180ms var(--ease-spring) both; }
+.drag-ghost.is-settling { transition: transform 200ms var(--ease-out); }
+.drag-ghost.is-settling > svg { animation: settle 200ms var(--ease-out) both; }
+@keyframes lift { from { transform: none; } to { transform: scale(calc(1 + 0.06 * var(--m))) rotate(calc(-1.5deg * var(--m))); } }
+@keyframes settle { from { transform: scale(calc(1 + 0.06 * var(--m))) rotate(calc(-1.5deg * var(--m))); } to { transform: none; } }
+body.is-sheet-dragging, body.is-sheet-dragging * { cursor: grabbing !important; }
+body.is-sheet-dragging .canvas-scroll { touch-action: none; }
 
 /* Visibility helpers live last so they win over component display rules (.btn etc.). */
 @media (min-width: 900px) { .only-mobile { display: none !important; } }

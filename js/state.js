@@ -112,6 +112,8 @@ function sanitizeUi(ui, project) {
 /* ---------- Pure document transforms ---------- */
 
 const withProject = (doc, patch) => ({ ...doc, project: { ...doc.project, ...patch } });
+// Reordering the sticker list means "arrange by the list": a manual copy order would hide it.
+const listOrder = (doc) => (doc.project.layout.copyOrder ? { ...doc.project.layout, copyOrder: null } : doc.project.layout);
 const mapStickers = (doc, ids, fn) => {
   const set = new Set(ids);
   let changed = false;
@@ -209,7 +211,7 @@ export const actions = {
       const j = i + delta;
       if (i < 0 || j < 0 || j >= list.length) return d;
       [list[i], list[j]] = [list[j], list[i]];
-      return withProject(d, { stickers: list });
+      return withProject(d, { stickers: list, layout: listOrder(d) });
     });
   },
 
@@ -220,7 +222,7 @@ export const actions = {
       if (i < 0 || i === toIndex) return d;
       const [item] = list.splice(i, 1);
       list.splice(clamp(toIndex, 0, list.length), 0, item);
-      return withProject(d, { stickers: list });
+      return withProject(d, { stickers: list, layout: listOrder(d) });
     });
   },
 

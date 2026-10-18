@@ -59,6 +59,9 @@ export function defaultLayout() {
     // 'compact': sorted by height for density, 'order': keeps project order
     strategy: 'grid',
     rowAlign: 'top',      // vertical alignment of stickers within a row
+    // Manual order of printed copies ("<sticker id>:<copy index>"), set by dragging on
+    // the preview; null = project order. See orderCopies() in layout-engine.js.
+    copyOrder: null,
   };
 }
 
@@ -286,6 +289,8 @@ export function normalizeProject(raw) {
     center: bool(ly.center, d.layout.center),
     strategy: oneOf(ly.strategy, ['grid', 'compact', 'order'], d.layout.strategy),
     rowAlign: oneOf(ly.rowAlign, ['top', 'center', 'bottom'], d.layout.rowAlign),
+    copyOrder: Array.isArray(ly.copyOrder) && ly.copyOrder.length
+      ? ly.copyOrder.filter((k) => typeof k === 'string' && /^[^:]+:\d+$/.test(k)).slice(0, 20000) : null,
   };
 
   const cl = raw.cutLines || {};

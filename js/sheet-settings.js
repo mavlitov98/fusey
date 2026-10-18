@@ -48,6 +48,10 @@ export function initSheetSettings(ctx) {
         </div>
         ${segmented({ path: 'layout.strategy', label: 'Раскладка', options: [{ value: 'grid', label: 'Для резки', aria: 'Для резки: ровные ряды одной высоты, сквозные линии' }, { value: 'compact', label: 'Плотно', aria: 'Плотно: сортировка по размеру' }, { value: 'order', label: 'По списку', aria: 'В порядке списка наклеек' }] })}
         <p class="note" id="strategyNote"></p>
+        <div class="manual-order" id="manualOrder" hidden>
+          <span class="note">Порядок копий задан вручную перетаскиванием на превью.</span>
+          <button type="button" class="btn btn--ghost btn--xs" id="resetCopyOrder">${icon('reset', { size: 14 })}Сбросить</button>
+        </div>
         ${segmented({ path: 'layout.rowAlign', label: 'Выравнивание в ряду', options: [{ value: 'top', label: 'Верх' }, { value: 'center', label: 'Центр' }, { value: 'bottom', label: 'Низ' }] })}
         ${switchField({ path: 'layout.allowRotate', label: 'Разрешить поворот на 90°', hint: 'Высокие наклейки ложатся горизонтально; не помещающиеся могут встать боком' })}
         ${switchField({ path: 'layout.center', label: 'Центрировать на листе', hint: 'Группа наклеек выравнивается по центру рабочей области' })}
@@ -131,7 +135,12 @@ export function initSheetSettings(ctx) {
     compact: 'Максимум наклеек на листе. Высота наклеек в ряду может различаться.',
     order: 'Порядок как в списке наклеек, ряды заполняются слева направо.',
   };
-  const syncAll = () => { binder.sync(); syncVisibility(); renderStats(); $('#strategyNote', root).textContent = STRATEGY_NOTES[store.project.layout.strategy]; };
+  const syncAll = () => {
+    binder.sync(); syncVisibility(); renderStats();
+    $('#strategyNote', root).textContent = STRATEGY_NOTES[store.project.layout.strategy];
+    $('#manualOrder', root).hidden = !store.project.layout.copyOrder;
+  };
+  $('#resetCopyOrder', root).addEventListener('click', () => actions.setProject(store, 'layout.copyOrder', null, false));
   syncAll();
   store.subscribe((cur, prev) => {
     if (cur.doc.project !== prev.doc.project) syncAll();

@@ -57,6 +57,39 @@ function expandCopies(project, area, errors) {
   return copies;
 }
 
+/** Key that identifies one printed copy across layouts: "<sticker id>:<copy index>". */
+export const copyKey = (c) => `${c.stickerId}:${c.copy}`;
+
+/**
+ * Applies the manual copy order (dragged on the preview) to copies listed in
+ * project order. Unknown keys are ignored; copies the manual order does not
+ * mention yet (quantity raised, sticker added) go right after the last listed
+ * copy of the same sticker, or to the end.
+ */
+export function orderCopies(copies, manual) {
+  if (!Array.isArray(manual) || !manual.length) return copies;
+  const byKey = new Map(copies.map((c) => [copyKey(c), c]));
+  const out = [];
+  const used = new Set();
+  for (const k of manual) {
+    const c = byKey.get(k);
+    if (c && !used.has(k)) { used.add(k); out.push(c); }
+  }
+  for (const c of copies) {
+    if (used.has(copyKey(c))) continue;
+    let i = out.length - 1;
+    while (i >= 0 && out[i].stickerId !== c.stickerId) i--;
+    out.splice(i >= 0 ? i + 1 : out.length, 0, c);
+  }
+  return out;
+}
+
+/** Every copy key of the project in its effective order. */
+export function effectiveCopyOrder(project) {
+  const natural = project.stickers.flatMap((s) => Array.from({ length: s.quantity }, (_, copy) => ({ stickerId: s.id, copy })));
+  return orderCopies(natural, project.layout.copyOrder).map(copyKey);
+}
+
 function pack(copies, area, layout) {
   const { gapX, gapY, strategy } = layout;
   const pages = [];
@@ -82,16 +115,20 @@ function pack(copies, area, layout) {
     return true;
   };
 
+  // `rank` is the position in the effective order (project order, or the manual one).
+  const manual = Array.isArray(layout.copyOrder) && layout.copyOrder.length > 0;
+  copies = orderCopies(copies, layout.copyOrder).map((c, rank) => ({ ...c, rank }));
   let sequence = copies;
   if (strategy === 'grid') {
-    // Bands of equal height in order of first appearance; widest first inside a band.
+    // Bands of equal height in order of first appearance; widest first inside a band
+    // (columns line up for vertical cuts) unless the user arranged copies by hand.
     const bands = new Map();
     for (const it of copies) {
       const k = Math.round(it.h * 1000);
       if (!bands.has(k)) bands.set(k, []);
       bands.get(k).push(it);
     }
-    sequence = [...bands.values()].flatMap((b) => b.sort((a, c) => (c.w - a.w) || (a.order - c.order) || (a.copy - c.copy)));
+    sequence = [...bands.values()].flatMap((b) => b.sort((a, c) => (manual ? 0 : c.w - a.w) || (a.rank - c.rank)));
   }
 
   if (strategy === 'order' || strategy === 'grid') {
@@ -104,7 +141,7 @@ function pack(copies, area, layout) {
       openShelf(page, it);
     }
   } else {
-    const sorted = [...copies].sort((a, b) => (b.h - a.h) || (b.w - a.w) || (a.order - b.order) || (a.copy - b.copy));
+    const sorted = [...copies].sort((a, b) => (b.h - a.h) || (b.w - a.w) || (a.rank - b.rank));
     for (const it of sorted) {
       let placed = false;
       for (const page of pages) {
