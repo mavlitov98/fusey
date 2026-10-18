@@ -59,6 +59,16 @@ test('templates cover all categories', () => {
     assert.ok(BUILTIN_TEMPLATES.some((t) => t.category === c.id), c.id);
   }
   for (const t of BUILTIN_TEMPLATES) if (t.icon.id) assert.ok(ICONS.has(t.icon.id), `${t.id}: ${t.icon.id}`);
+  assert.equal(new Set(BUILTIN_TEMPLATES.map((t) => t.id)).size, BUILTIN_TEMPLATES.length, 'template ids are unique');
+});
+
+test('every built-in template fits its sticker without overflow or warnings', async () => {
+  const fonts = await nodeFonts();
+  for (const t of BUILTIN_TEMPLATES) {
+    const L = layoutSticker(createSticker(t), fonts);
+    assert.ok(!L.overflow && !L.warnings.length, `${t.id}: ${L.warnings.map((w) => w.code).join(', ')}`);
+    assert.ok(L.fitSizePt >= 6, `${t.id}: title shrinks to ${L.fitSizePt.toFixed(1)} pt`);
+  }
 });
 
 test('word wrap breaks long words and keeps explicit newlines', () => {

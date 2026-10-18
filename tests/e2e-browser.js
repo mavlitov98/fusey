@@ -64,9 +64,11 @@ async () => {
   $('#tplSearch').value = 'посудом'; $('#tplSearch').dispatchEvent(new Event('input', { bubbles: true })); await sleep(50);
   check('2 search filters templates', $$('#tplGrid [data-tpl]').length === 1, $$('#tplGrid [data-tpl]').length);
   $('#tplSearch').value = ''; $('#tplSearch').dispatchEvent(new Event('input', { bubbles: true }));
-  $('[data-cat="warning"]').click(); await sleep(50);
-  check('2 category filter', $$('#tplGrid [data-tpl]').length === 4, $$('#tplGrid [data-tpl]').length);
-  $('[data-cat="all"]').click();
+  // Category change waits for the old cards' leave animation before re-rendering.
+  $('[data-cat="warning"]').click(); await sleep(250);
+  const warnCount = (await import('/js/templates.js')).BUILTIN_TEMPLATES.filter((t) => t.category === 'warning').length;
+  check('2 category filter', $$('#tplGrid [data-tpl]').length === warnCount, $$('#tplGrid [data-tpl]').length);
+  $('[data-cat="all"]').click(); await sleep(250);
 
   // 3. Icon and style
   $('[data-icon="fridge"]').click(); await sleep(50);
