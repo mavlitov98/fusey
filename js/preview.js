@@ -227,29 +227,73 @@ export function initPreview(ctx) {
     setScale(scale * Math.exp(-e.deltaY * 0.002), { x: e.clientX, y: e.clientY });
   }, { passive: false });
 
-  // Two-finger pinch zoom on touch screens (single finger keeps native scrolling).
-  const pointers = new Map();
-  let pinch = null;
-  scroller.addEventListener('pointerdown', (e) => {
-    if (e.pointerType !== 'touch') return;
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointers.size === 2) {
-      const [p1, p2] = [...pointers.values()];
-      pinch = { d: Math.hypot(p1.x - p2.x, p1.y - p2.y), s: scale };
+  /*
+   * Two-finger pinch zoom on touch screens (one finger keeps native scrolling).
+   * Touch events, not pointer events: iOS cancels pointers once it starts a native
+   * pan and sometimes drops pointerup, and a stale pointer map left pinch dead until
+   * reload. `e.touches` is the real list of fingers on every event, so the state can
+   * not drift. During the gesture the stage is only CSS-transformed (compositor, one
+   * write per frame); the SVG is re-rendered once at the new scale when it ends.
+   */
+  let pinch = null, pinchRaf = 0;
+  const touchInfo = (t) => {
+    const [a, b] = [t[0], t[1]];
+    return { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1, x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
+  };
+  const pinchScale = () => clamp(pinch.s * (pinch.cur.d / pinch.start.d), MIN_SCALE, MAX_SCALE);
+  const paintPinch = () => {
+    pinchRaf = 0;
+    if (!pinch) return;
+    const k = pinchScale() / pinch.s;
+    stage.style.transform = `translate3d(${pinch.cur.x - pinch.start.x}px, ${pinch.cur.y - pinch.start.y}px, 0) scale(${k})`;
+  };
+  const startPinch = (touches) => {
+    const svg = stage.querySelector('svg');
+    if (!svg) return;
+    const start = touchInfo(touches);
+    const st = stage.getBoundingClientRect(), sr = svg.getBoundingClientRect();
+    // Sheet point (mm) under the fingers' midpoint; it stays under the midpoint.
+    pinch = { s: scale, start, cur: start, mmX: (start.x - sr.left) / scale, mmY: (start.y - sr.top) / scale };
+    stage.style.transformOrigin = `${start.x - st.left}px ${start.y - st.top}px`;
+    stage.style.willChange = 'transform';
+  };
+  const endPinch = () => {
+    if (!pinch) return;
+    cancelAnimationFrame(pinchRaf); pinchRaf = 0;
+    const { mmX, mmY, cur } = pinch;
+    const next = pinchScale();
+    pinch = null;
+    stage.style.transform = '';
+    stage.style.transformOrigin = '';
+    stage.style.willChange = '';
+    fit = false;
+    scale = next;
+    render();
+    const sr = stage.querySelector('svg').getBoundingClientRect();
+    scroller.scrollLeft += sr.left + mmX * scale - cur.x;
+    scroller.scrollTop += sr.top + mmY * scale - cur.y;
+  };
+  scroller.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) startPinch(e.touches);
+    else if (e.touches.length > 2) endPinch();
+  }, { passive: true });
+  scroller.addEventListener('touchmove', (e) => {
+    if (!pinch) {
+      // A second finger can land while iOS is already scrolling; pick the gesture up here.
+      if (e.touches.length !== 2) return;
+      startPinch(e.touches);
+      if (!pinch) return;
     }
-  });
-  scroller.addEventListener('pointermove', (e) => {
-    if (!pointers.has(e.pointerId)) return;
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pinch && pointers.size === 2) {
-      const [p1, p2] = [...pointers.values()];
-      const d = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-      setScale(pinch.s * (d / pinch.d), { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 });
-    }
-  });
-  const endPointer = (e) => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; };
-  scroller.addEventListener('pointerup', endPointer);
-  scroller.addEventListener('pointercancel', endPointer);
+    if (e.touches.length !== 2) { endPinch(); return; }
+    if (e.cancelable) e.preventDefault();
+    pinch.cur = touchInfo(e.touches);
+    if (!pinchRaf) pinchRaf = requestAnimationFrame(paintPinch);
+  }, { passive: false });
+  scroller.addEventListener('touchend', (e) => { if (e.touches.length < 2) endPinch(); });
+  scroller.addEventListener('touchcancel', endPinch);
+  // Safety net: a gesture interrupted by the system (app switch, notification) never strands the stage.
+  window.addEventListener('blur', endPinch);
+  document.addEventListener('visibilitychange', endPinch);
 
   /* ---------- Pages, modes, selection ---------- */
 
