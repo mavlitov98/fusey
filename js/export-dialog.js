@@ -47,7 +47,7 @@ export function initExportDialog(ctx) {
       <div class="print-hint">
         ${icon('print', { size: 18 })}
         <div>
-          <p><strong>Для сохранения размеров печатайте PDF в масштабе 100% / Actual Size. Отключите Fit to page / Подогнать под страницу в настройках принтера.</strong></p>
+          <p><strong>Для сохранения размеров печатайте в масштабе 100%</strong></p>
           <p class="field-hint">Итоговая точность зависит также от принтера и его непечатаемых полей. Проверьте размер первой наклейки линейкой.</p>
         </div>
       </div>`;
