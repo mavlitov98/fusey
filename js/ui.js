@@ -126,6 +126,29 @@ export function confirmDialog({ title, message, confirmLabel = 'Подтверд
   });
 }
 
+/**
+ * A tap or click on the dimmed area around any .dialog closes it, like Cancel.
+ * Clicks on the ::backdrop are dispatched to the <dialog> itself, so the point is
+ * checked against the dialog's box. The press must also start outside: a text
+ * selection dragged out of a field must not close the dialog. A dialog marked
+ * aria-busy (PDF being generated) stays open.
+ */
+export function initDialogDismiss() {
+  const outside = (dlg, e) => {
+    const r = dlg.getBoundingClientRect();
+    return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+  };
+  document.querySelectorAll('dialog.dialog').forEach((dlg) => {
+    let downOutside = false;
+    dlg.addEventListener('pointerdown', (e) => { downOutside = e.target === dlg && outside(dlg, e); });
+    dlg.addEventListener('click', (e) => {
+      const ok = downOutside && e.target === dlg && outside(dlg, e) && dlg.getAttribute('aria-busy') !== 'true';
+      downOutside = false;
+      if (ok) dlg.close();
+    });
+  });
+}
+
 /** Prompt-like dialog with a single text field. Resolves with the string or null. */
 export function promptDialog({ title, label, value = '', confirmLabel = 'Сохранить' }) {
   const dlg = $('#promptDialog');

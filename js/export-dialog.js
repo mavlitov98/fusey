@@ -15,6 +15,28 @@ export function initExportDialog(ctx) {
   const status = $('#exportStatus');
   let busy = false;
 
+  // Static part built once: re-creating the switch on every project change made it
+  // jump to its new state instead of sliding. Only the summary is re-rendered.
+  body.innerHTML = `
+    <dl class="stats stats--export" id="exportStats"></dl>
+    <div class="export-issues" id="exportIssues"></div>
+    <label class="switch switch--inline">
+      <span class="switch__text"><span class="field-label">Линии реза</span><span class="field-hint">Тонкие линии по контуру наклеек</span></span>
+      <input type="checkbox" role="switch" id="exportCuts">
+      <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+    </label>
+    <div class="print-hint">
+      ${icon('print', { size: 18 })}
+      <div>
+        <p><strong>Для сохранения размеров печатайте в масштабе 100%</strong></p>
+        <p class="field-hint">Итоговая точность зависит также от принтера и его непечатаемых полей. Проверьте размер первой наклейки линейкой.</p>
+      </div>
+    </div>`;
+  const stats$ = $('#exportStats', body), issues$ = $('#exportIssues', body);
+  const patch = (el, html) => { if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; } };
+  const cuts = $('#exportCuts', body);
+  cuts.addEventListener('change', () => actions.setProject(store, 'cutLines.enabled', cuts.checked, false));
+
   const render = () => {
     const p = store.project;
     const sheet = ctx.getSheet();
@@ -36,25 +58,13 @@ export function initExportDialog(ctx) {
     if (glyphs.length) issues.push(['warn', `Некоторые символы не поддерживаются шрифтом и не будут напечатаны (${glyphs.length} ${plural(glyphs.length, ['наклейка', 'наклейки', 'наклеек'])}).`]);
     sheet.warnings.forEach((w) => issues.push(['warn', w.message]));
 
-    body.innerHTML = `
-      <dl class="stats stats--export">${rows.map(([k, v]) => `<div class="stats__row"><dt>${k}</dt><dd>${escapeXml(v)}</dd></div>`).join('')}</dl>
-      ${issues.map(([k, m]) => `<div class="callout callout--${k}" role="${k === 'error' ? 'alert' : 'note'}">${icon('alert', { size: 16 })}<span>${escapeXml(m)}</span></div>`).join('')}
-      <label class="switch switch--inline">
-        <span class="switch__text"><span class="field-label">Линии реза</span><span class="field-hint">Тонкие линии по контуру наклеек</span></span>
-        <input type="checkbox" role="switch" id="exportCuts" ${p.cutLines.enabled ? 'checked' : ''}>
-        <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
-      </label>
-      <div class="print-hint">
-        ${icon('print', { size: 18 })}
-        <div>
-          <p><strong>Для сохранения размеров печатайте в масштабе 100%</strong></p>
-          <p class="field-hint">Итоговая точность зависит также от принтера и его непечатаемых полей. Проверьте размер первой наклейки линейкой.</p>
-        </div>
-      </div>`;
+    // Each part is replaced only when it changed, so callouts do not replay their entrance.
+    patch(stats$, rows.map(([k, v]) => `<div class="stats__row"><dt>${k}</dt><dd>${escapeXml(v)}</dd></div>`).join(''));
+    patch(issues$, issues.map(([k, m]) => `<div class="callout callout--${k}" role="${k === 'error' ? 'alert' : 'note'}">${icon('alert', { size: 16 })}<span>${escapeXml(m)}</span></div>`).join(''));
+    cuts.checked = p.cutLines.enabled;
     const blocked = sheet.errors.length > 0 || !p.stickers.length;
     btn.disabled = blocked || busy;
     btn.setAttribute('aria-disabled', String(blocked));
-    $('#exportCuts', body).addEventListener('change', (e) => actions.setProject(store, 'cutLines.enabled', e.target.checked, false));
   };
 
   const setBusy = (v) => {
@@ -101,7 +111,8 @@ export function initExportDialog(ctx) {
       status.innerHTML = '';
       render();
       dlg.showModal();
-      btn.disabled ? $('#exportCancel').focus() : btn.focus();
+      // No focus ring on open by tap; keyboard users still land on the main action.
+      (btn.disabled ? $('#exportCancel') : btn).focus({ focusVisible: false });
     },
   };
 }

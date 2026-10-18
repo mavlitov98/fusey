@@ -12,7 +12,7 @@ import { initSheetSettings } from './sheet-settings.js';
 import { initStickerEditor } from './sticker-editor.js';
 import { initPreview } from './preview.js';
 import { initExportDialog } from './export-dialog.js';
-import { icon, on, toast, confirmDialog, isMobile, initAccordions, initSegmentedInk, smoothScrollTo, $, $$ } from './ui.js';
+import { icon, on, toast, confirmDialog, isMobile, initAccordions, initDialogDismiss, initSegmentedInk, smoothScrollTo, $, $$ } from './ui.js';
 import { plural } from './utils.js';
 
 const fonts = createBrowserFontRegistry();
@@ -378,6 +378,7 @@ async function boot() {
   initShortcuts(exportDlg);
   initZoomGuard();
   initAccordions();
+  initDialogDismiss();
   initSegmentedInk();
   initSheetSwipe();
 
