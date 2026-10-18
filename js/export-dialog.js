@@ -1,6 +1,7 @@
 // Export dialog: job summary, validation, filename and the actual PDF download.
 
 import { exportPdf, defaultFileName, PdfExportError } from './pdf-export.js';
+import { exportPreviewJpg } from './preview-export.js';
 import { actions } from './state.js';
 import { icon, toast, $ } from './ui.js';
 import { escapeXml, formatSize, formatLength, plural } from './utils.js';
@@ -11,6 +12,7 @@ export function initExportDialog(ctx) {
   const dlg = $('#exportDialog');
   const body = $('#exportBody');
   const btn = $('#exportGo');
+  const previewBtn = $('#exportPreview');
   const nameInput = $('#exportName');
   const status = $('#exportStatus');
   let busy = false;
@@ -65,11 +67,13 @@ export function initExportDialog(ctx) {
     const blocked = sheet.errors.length > 0 || !p.stickers.length;
     btn.disabled = blocked || busy;
     btn.setAttribute('aria-disabled', String(blocked));
+    previewBtn.disabled = blocked || busy;
   };
 
   const setBusy = (v) => {
     busy = v;
     btn.disabled = v;
+    previewBtn.disabled = v;
     btn.classList.toggle('is-loading', v);
     btn.querySelector('.btn__label').textContent = v ? 'Создаём PDF…' : 'Скачать PDF';
     dlg.setAttribute('aria-busy', String(v));
@@ -99,6 +103,27 @@ export function initExportDialog(ctx) {
       console.error(err);
     } finally {
       setBusy(false);
+      render();
+    }
+  });
+
+  // Watermarked low-res JPG for approving the layout with a client; the dialog stays open.
+  previewBtn.addEventListener('click', async () => {
+    if (busy) return;
+    const name = (nameInput.value.trim() || defaultFileName()).replace(/\.pdf$/i, '').replace(/[\\/:*?"<>|]+/g, '-') + '-preview.jpg';
+    status.innerHTML = '';
+    busy = true;
+    btn.disabled = previewBtn.disabled = true;
+    previewBtn.classList.add('is-loading');
+    try {
+      const res = await exportPreviewJpg({ project: store.project, layout: ctx.getSheet(), getLayout: ctx.getLayout, fonts: ctx.fonts }, name);
+      toast(`Превью сохранено: ${name}, ${res.pages} ${plural(res.pages, ['страница', 'страницы', 'страниц'])}`, { type: 'success', timeout: 5000 });
+    } catch (err) {
+      status.innerHTML = `<div class="callout callout--error" role="alert">${icon('alert', { size: 16 })}<span>${escapeXml(`Не удалось создать превью: ${err.message || err}`)}</span></div>`;
+      console.error(err);
+    } finally {
+      busy = false;
+      previewBtn.classList.remove('is-loading');
       render();
     }
   });

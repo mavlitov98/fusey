@@ -11,33 +11,34 @@
   <script type="importmap">
   {
     "imports": {
-      "./js/export-dialog.js": "./js/export-dialog.js?v=2026.10.18.7",
-      "./js/fields.js": "./js/fields.js?v=2026.10.18.7",
-      "./js/fonts.js": "./js/fonts.js?v=2026.10.18.7",
-      "./js/icons-material.js": "./js/icons-material.js?v=2026.10.18.7",
-      "./js/icons.js": "./js/icons.js?v=2026.10.18.7",
-      "./js/layout-engine.js": "./js/layout-engine.js?v=2026.10.18.7",
-      "./js/library.js": "./js/library.js?v=2026.10.18.7",
-      "./js/model.js": "./js/model.js?v=2026.10.18.7",
-      "./js/path.js": "./js/path.js?v=2026.10.18.7",
-      "./js/pdf-export.js": "./js/pdf-export.js?v=2026.10.18.7",
-      "./js/preview.js": "./js/preview.js?v=2026.10.18.7",
-      "./js/sheet-drag.js": "./js/sheet-drag.js?v=2026.10.18.7",
-      "./js/sheet-settings.js": "./js/sheet-settings.js?v=2026.10.18.7",
-      "./js/state.js": "./js/state.js?v=2026.10.18.7",
-      "./js/sticker-editor.js": "./js/sticker-editor.js?v=2026.10.18.7",
-      "./js/sticker-layout.js": "./js/sticker-layout.js?v=2026.10.18.7",
-      "./js/sticker-list.js": "./js/sticker-list.js?v=2026.10.18.7",
-      "./js/storage.js": "./js/storage.js?v=2026.10.18.7",
-      "./js/svg-render.js": "./js/svg-render.js?v=2026.10.18.7",
-      "./js/templates.js": "./js/templates.js?v=2026.10.18.7",
-      "./js/ui.js": "./js/ui.js?v=2026.10.18.7",
-      "./js/utils.js": "./js/utils.js?v=2026.10.18.7"
+      "./js/export-dialog.js": "./js/export-dialog.js?v=2026.10.18.11",
+      "./js/fields.js": "./js/fields.js?v=2026.10.18.11",
+      "./js/fonts.js": "./js/fonts.js?v=2026.10.18.11",
+      "./js/icons-material.js": "./js/icons-material.js?v=2026.10.18.11",
+      "./js/icons.js": "./js/icons.js?v=2026.10.18.11",
+      "./js/layout-engine.js": "./js/layout-engine.js?v=2026.10.18.11",
+      "./js/library.js": "./js/library.js?v=2026.10.18.11",
+      "./js/model.js": "./js/model.js?v=2026.10.18.11",
+      "./js/path.js": "./js/path.js?v=2026.10.18.11",
+      "./js/pdf-export.js": "./js/pdf-export.js?v=2026.10.18.11",
+      "./js/preview-export.js": "./js/preview-export.js?v=2026.10.18.11",
+      "./js/preview.js": "./js/preview.js?v=2026.10.18.11",
+      "./js/sheet-drag.js": "./js/sheet-drag.js?v=2026.10.18.11",
+      "./js/sheet-settings.js": "./js/sheet-settings.js?v=2026.10.18.11",
+      "./js/state.js": "./js/state.js?v=2026.10.18.11",
+      "./js/sticker-editor.js": "./js/sticker-editor.js?v=2026.10.18.11",
+      "./js/sticker-layout.js": "./js/sticker-layout.js?v=2026.10.18.11",
+      "./js/sticker-list.js": "./js/sticker-list.js?v=2026.10.18.11",
+      "./js/storage.js": "./js/storage.js?v=2026.10.18.11",
+      "./js/svg-render.js": "./js/svg-render.js?v=2026.10.18.11",
+      "./js/templates.js": "./js/templates.js?v=2026.10.18.11",
+      "./js/ui.js": "./js/ui.js?v=2026.10.18.11",
+      "./js/utils.js": "./js/utils.js?v=2026.10.18.11"
     }
   }
   </script>
-  <link rel="stylesheet" href="css/styles.css?v=2026.10.18.7">
-  <link rel="stylesheet" href="css/components.css?v=2026.10.18.7">
+  <link rel="stylesheet" href="css/styles.css?v=2026.10.18.11">
+  <link rel="stylesheet" href="css/components.css?v=2026.10.18.11">
 </head>
 <body class="is-loading" data-left-tab="library" data-mview="library">
   <a class="skip-link" href="#canvasScroll">Перейти к листу</a>
@@ -206,6 +207,11 @@
       </div>
       <footer class="dialog__foot">
         <button type="button" class="btn btn--ghost" id="exportCancel" onclick="this.closest('dialog').close()">Отмена</button>
+        <button type="button" class="btn btn--ghost" id="exportPreview" title="JPG с водяным знаком «ОБРАЗЕЦ» для согласования с клиентом. Не для печати">
+          <span class="btn__spinner" aria-hidden="true"></span>
+          <svg class="ui-icon btn__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="m20 16-4.5-4.5L7 19"/></svg>
+          <span class="btn__label">Превью JPG</span>
+        </button>
         <button type="button" class="btn btn--primary" id="exportGo">
           <span class="btn__spinner" aria-hidden="true"></span>
           <svg class="ui-icon btn__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
@@ -249,6 +255,6 @@
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
   <noscript><p class="noscript">Для работы Fusey нужен JavaScript.</p></noscript>
-  <script type="module" src="js/app.js?v=2026.10.18.7"></script>
+  <script type="module" src="js/app.js?v=2026.10.18.11"></script>
 </body>
 </html>

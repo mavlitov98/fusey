@@ -57,6 +57,22 @@ export function initLibrary(ctx) {
     animTimer = setTimeout(() => grid.classList.remove('is-anim'), 1000);
   };
 
+  // Category change: the old cards drop away first, then the new set rises in, so the
+  // filtering is visible even when both categories look alike. Rapid taps restart it.
+  const LEAVE_MS = 140;
+  let leaveTimer = null;
+  const swapGrid = () => {
+    clearTimeout(leaveTimer);
+    if (!grid.querySelector('.tpl-card')) { renderGrid(); animateGrid(); return; }
+    grid.classList.remove('is-anim');
+    grid.classList.add('is-leaving');
+    leaveTimer = setTimeout(() => {
+      grid.classList.remove('is-leaving');
+      renderGrid();
+      animateGrid();
+    }, LEAVE_MS);
+  };
+
   const renderGrid = () => {
     const q = store.ui.search.trim().toLowerCase();
     const cat = store.ui.category;
@@ -141,7 +157,7 @@ export function initLibrary(ctx) {
   animateGrid();
 
   store.subscribe((cur, prev) => {
-    if (cur.ui.category !== prev.ui.category) { renderCats(); renderGrid(); animateGrid(); return; }
+    if (cur.ui.category !== prev.ui.category) { renderCats(); swapGrid(); return; }
     if (cur.ui.search !== prev.ui.search) { renderGrid(); animateGrid(); return; }
     if (cur.doc.customTemplates !== prev.doc.customTemplates
       || cur.doc.project.displayUnit !== prev.doc.project.displayUnit || cur.doc.project.customIcons !== prev.doc.project.customIcons) renderGrid();

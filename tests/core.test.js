@@ -8,6 +8,7 @@ import { BUILTIN_TEMPLATES, findTemplate, CATEGORIES } from '../js/templates.js'
 import { computeLayout, cutSegments, orderCopies, effectiveCopyOrder, copyKey } from '../js/layout-engine.js';
 import { layoutSticker, wrapText } from '../js/sticker-layout.js';
 import { nodeFonts } from './helpers.js';
+import { buildPreviewSvgs, WATERMARK_TEXT } from '../js/preview-export.js';
 
 const fontsP = nodeFonts();
 
@@ -305,4 +306,23 @@ test('manual order in grid keeps rows of one height', () => {
   const items = sheet.pages[0].items;
   const t0 = items.find((i) => copyKey(i) === 't:0'), t1 = items.find((i) => copyKey(i) === 't:1');
   assert.equal(t0.y, t1.y, 'tall copies share their row');
+});
+
+test('client preview: one watermarked SVG per page, fonts embedded, no cut lines', async () => {
+  const fonts = await nodeFonts();
+  const p = demoProject();
+  p.stickers[0].quantity = 60; // force a second page
+  const sheet = computeLayout(p);
+  assert.ok(sheet.pages.length > 1);
+  const cache = new Map();
+  const getLayout = (s) => cache.get(s) || cache.set(s, layoutSticker(s, fonts)).get(s);
+  const svgs = await buildPreviewSvgs({ project: p, layout: sheet, getLayout, fonts });
+  assert.equal(svgs.length, sheet.pages.length);
+  for (const svg of svgs) {
+    assert.ok(svg.includes(`>${WATERMARK_TEXT}<`), 'watermark text');
+    assert.ok(svg.includes('Превью макета'), 'footer band');
+    assert.ok(/@font-face\{[^}]*base64,/.test(svg), 'embedded font');
+    assert.ok(!svg.includes('stroke-dasharray'), 'no cut lines');
+  }
+  await assert.rejects(buildPreviewSvgs({ project: createProject(), layout: computeLayout(createProject()), getLayout, fonts }));
 });

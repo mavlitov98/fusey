@@ -90,7 +90,7 @@
 .range::-moz-range-track { height: 4px; border-radius: 2px; background: var(--line-strong); }
 .range::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%; background: var(--text); border: 0; transition: transform var(--t-fast); }
 .range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--text); border: 0; }
-.range:hover::-webkit-slider-thumb { transform: scale(1.12); background: var(--accent); }
+@media (hover: hover) { .range:hover::-webkit-slider-thumb { transform: scale(1.12); background: var(--accent); } }
 
 .segmented {
   display: flex; padding: 3px; gap: 2px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r);
@@ -162,7 +162,8 @@
 
 .chips { display: flex; gap: 6px; }
 .chips--wrap { flex-wrap: wrap; }
-.chips--scroll { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; scroll-behavior: smooth; margin: 0 -16px; padding: 0 16px;
+/* Vertical padding (cancelled by negative margin) gives the active chip's pop room: a scroller clips both axes. */
+.chips--scroll { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; scroll-behavior: smooth; margin: -4px -16px; padding: 4px 16px;
   mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 24px), transparent); }
 .chip {
   height: 30px; padding: 0 12px; border-radius: var(--r); border: 1px solid var(--line-strong);
@@ -315,7 +316,7 @@ details.is-closing > .section__head .section__caret { transform: rotate(-90deg);
 .icon-pick:hover { background: var(--surface-3); color: var(--text); }
 .icon-pick:active { transform: scale(0.9); }
 .icon-pick { transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast), transform var(--t-fast); }
-.color-swatch:hover { transform: scale(1.06); }
+@media (hover: hover) { .color-swatch:hover { transform: scale(1.06); } }
 .icon-pick[aria-pressed="true"] { background: var(--surface-3); color: var(--text); box-shadow: inset 0 0 0 2px var(--accent); }
 .icon-pick--upload { border: 1px dashed var(--line-strong); }
 
@@ -431,7 +432,7 @@ details.is-closing > .section__head .section__caret { transform: rotate(-90deg);
   .preset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .icon-picker { max-height: 260px; }
   .icon-pick { height: 42px; }
-  .chips--scroll { margin: 0 -12px; padding: 0 12px; }
+  .chips--scroll { margin: -4px -12px; padding: 4px 12px; }
 
   .chips--scroll::-webkit-scrollbar { display: none; }
   .canvas-toolbar .segmented__btn { height: 32px; }
@@ -440,6 +441,9 @@ details.is-closing > .section__head .section__caret { transform: rotate(-90deg);
   .dialog { width: 100vw; max-width: 100vw; max-height: 92dvh; margin: auto 0 0; border-radius: var(--r-lg) var(--r-lg) 0 0; border-bottom: 0; }
   .dialog__foot { padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
   .dialog__foot .btn { flex: 1; min-width: 0; }
+  /* Three actions do not fit one row on a phone: the main one takes a full row on top. */
+  .dialog__foot:has(> :nth-child(3)) { display: grid; grid-template-columns: 1fr 1fr; }
+  .dialog__foot:has(> :nth-child(3)) > .btn--primary { grid-column: 1 / -1; order: -1; }
   /* The open sheet does not replay the callouts' own entrance on top of its slide. */
   .dialog .callout { animation: none; }
 
@@ -502,7 +506,10 @@ details.is-closing > .section__head .section__caret { transform: rotate(-90deg);
 @keyframes page-in { from { opacity: 0; transform: translateX(calc(var(--dir, 1) * 28px * var(--m))); } }
 @keyframes item-in { from { opacity: 0; transform: scale(calc(1 - 0.18 * var(--m))); } }
 
-.tpl-grid.is-anim .tpl-card { animation: rise 260ms var(--ease-out) backwards; animation-delay: calc(var(--i, 0) * 16ms); }
+.tpl-grid.is-anim .tpl-card { animation: card-in 380ms var(--ease-out) backwards; animation-delay: calc(var(--i, 0) * 30ms); }
+.tpl-grid.is-leaving .tpl-card { animation: card-out 140ms var(--ease) both; pointer-events: none; }
+@keyframes card-in { from { opacity: 0; transform: translateY(calc(22px * var(--m))) scale(calc(1 - 0.08 * var(--m))); } }
+@keyframes card-out { to { opacity: 0; transform: translateY(calc(-8px * var(--m))) scale(calc(1 - 0.06 * var(--m))); } }
 .stk-row.is-new { animation: rise 240ms var(--ease-out) backwards; }
 .stk-row { transition: background var(--t-fast), border-color var(--t-fast), transform 240ms var(--ease-out); }
 .inspector__body.is-swapping > * { animation: rise 220ms var(--ease-out) backwards; }
@@ -550,9 +557,13 @@ details.is-closing > .section__head .section__caret { transform: rotate(-90deg);
 .btn:active:not(:disabled) { transform: scale(0.97); }
 .icon-btn { transition: background var(--t-fast), color var(--t-fast), transform var(--t-fast); }
 .icon-btn:active:not(:disabled) { transform: scale(0.9); }
-.tpl-card__main:hover { transform: translateY(calc(-2px * var(--m))); }
 .stk-row__thumb svg, .tpl-card__thumb svg { transition: transform var(--t) var(--ease-out); }
-.tpl-card__main:hover .tpl-card__thumb svg { transform: scale(calc(1 + 0.06 * var(--m))); }
+/* Hover motion only for real pointers: on touch screens :hover sticks after a tap and
+   stacked on top of the tap's own pop (double grow, card left lifted). */
+@media (hover: hover) {
+  .tpl-card__main:hover { transform: translateY(calc(-2px * var(--m))); }
+  .tpl-card__main:hover .tpl-card__thumb svg { transform: scale(calc(1 + 0.06 * var(--m))); }
+}
 
 /* Sheet preview: items glide to new positions (FLIP from JS), new items scale in. */
 .sheet-anim { transition: transform 280ms var(--ease-out); }
