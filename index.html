@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title>Fusey · наклейки для электрощита</title>
+  <title>Fusey | Наклейки для электрощита</title>
   <meta name="description" content="Fusey: создание наклеек для электрических щитов с точными размерами, линиями реза и экспортом в PDF.">
   <meta name="theme-color" content="#0E0F10">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
@@ -17,26 +17,15 @@
   <div class="app">
     <header class="topbar">
       <div class="brand">
-        <svg class="brand__mark" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
-          <defs>
-            <!-- A bright band sweeps down the bolt: current flowing through it. -->
-            <linearGradient id="zapCurrent" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="32">
-              <stop offset="0" style="stop-color: var(--accent)"/>
-              <stop offset="0.38" style="stop-color: var(--accent)"/>
-              <stop offset="0.5" style="stop-color: #DDF0FF"/>
-              <stop offset="0.62" style="stop-color: var(--accent)"/>
-              <stop offset="1" style="stop-color: var(--accent)"/>
-              <animateTransform attributeName="gradientTransform" type="translate" values="0 -30; 0 30; 0 30" keyTimes="0; 0.55; 1" dur="2.8s" repeatCount="indefinite"/>
-            </linearGradient>
-          </defs>
-          <path class="brand__zap" d="M19.5 1.5 5.5 18.5h8.6l-2.6 12L26.5 12.5h-8.7l1.7-11Z" fill="url(#zapCurrent)" stroke="var(--accent)" stroke-width="1.4" stroke-linejoin="round"/>
-        </svg>
+        <!-- Bolt and wordmark share one "current" sweep: CSS only, so it runs the same in
+             Safari, which ignores CSS filters on SVG children and pauses SMIL unreliably. -->
+        <span class="brand__mark" aria-hidden="true"><span class="brand__glow"></span><span class="brand__bolt"></span></span>
         <span class="brand__name">Fusey</span>
       </div>
 
       <div class="project-name">
         <label class="sr-only" for="projectName">Название проекта</label>
-        <input id="projectName" class="project-name__input" type="text" maxlength="120" autocomplete="off" spellcheck="false">
+        <input id="projectName" class="project-name__input" type="text" maxlength="120" autocomplete="off" spellcheck="false" data-project-name>
       </div>
 
       <div class="topbar-stats" aria-live="polite">
@@ -60,6 +49,12 @@
             <svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" aria-hidden="true"><path d="M12 5.5h.01M12 12h.01M12 18.5h.01"/></svg>
           </button>
           <div id="projectMenu" class="menu" role="menu" hidden>
+            <!-- Phones have no room for the name in the top bar, so it lives here. -->
+            <div class="menu__field only-mobile" role="none">
+              <label class="field-label" for="menuProjectName">Название проекта</label>
+              <input id="menuProjectName" class="input" type="text" maxlength="120" autocomplete="off" spellcheck="false" data-project-name>
+            </div>
+            <div class="menu__sep only-mobile" role="separator"></div>
             <button role="menuitem" data-menu="new">Новый проект</button>
             <button role="menuitem" data-menu="import-json">Открыть из JSON…</button>
             <button role="menuitem" data-menu="export-json">Сохранить в JSON</button>

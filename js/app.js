@@ -102,37 +102,88 @@ function openEditor({ focusText = false } = {}) {
     document.body.classList.add('editor-open');
     $('#inspector').setAttribute('aria-modal', 'true');
     $('#inspector').setAttribute('role', 'dialog');
-    setTimeout(() => (focusText ? editor.focusText() : $('#inspectorClose').focus()), 60);
+    setTimeout(() => (focusText ? editor.focusText() : $('#inspectorClose').focus({ focusVisible: false })), 60);
   } else if (focusText) {
     setTimeout(() => editor.focusText(), 0);
   }
 }
 
-/** Mobile editor sheet: drag the header down to dismiss. */
+/**
+ * Mobile editor sheet: drag down to dismiss, from the header or from the body when it
+ * is scrolled to the top (like native iOS sheets). The offset is written once per
+ * frame, snapped to device pixels so text does not shimmer, and the scrim fades with
+ * it. A quick flick dismisses even over a short distance.
+ */
 function initSheetSwipe() {
   const sheet = $('#inspector');
   const head = $('.inspector__head', sheet);
-  let startY = null, dy = 0;
-  head.addEventListener('pointerdown', (e) => {
-    if (!isMobile() || !document.body.classList.contains('editor-open') || e.target.closest('button')) return;
-    startY = e.clientY; dy = 0;
+  const body = $('#inspector-body');
+  const scrim = $('#sheetScrim');
+  const dpr = window.devicePixelRatio || 1;
+  let startY = null, dy = 0, raf = 0, samples = [], height = 1;
+
+  const paint = () => {
+    raf = 0;
+    const y = Math.round(dy * dpr) / dpr;
+    sheet.style.setProperty('--drag', `${y}px`);
+    scrim.style.opacity = String(Math.min(1, Math.max(0, 1 - y / height)));
+  };
+  const begin = (y) => {
+    startY = y; dy = 0; samples = [{ y, t: performance.now() }]; height = sheet.offsetHeight || 1;
     sheet.classList.add('is-dragging');
-    head.setPointerCapture(e.pointerId);
-  });
-  head.addEventListener('pointermove', (e) => {
-    if (startY === null) return;
-    dy = Math.max(0, e.clientY - startY);
-    sheet.style.setProperty('--drag', `${dy}px`);
-  });
+    scrim.classList.add('is-dragging');
+  };
+  const move = (y) => {
+    const raw = y - startY;
+    // Pulling up past the resting position meets growing resistance instead of a hard stop.
+    dy = raw >= 0 ? raw : -Math.min(24, Math.sqrt(-raw) * 2);
+    const t = performance.now();
+    samples.push({ y, t });
+    while (samples.length > 2 && t - samples[0].t > 100) samples.shift();
+    if (!raf) raf = requestAnimationFrame(paint);
+  };
   const end = () => {
     if (startY === null) return;
     startY = null;
+    cancelAnimationFrame(raf); raf = 0;
+    const first = samples[0], last = samples[samples.length - 1];
+    const v = last && last.t > first.t ? (last.y - first.y) / (last.t - first.t) : 0; // px/ms
     sheet.classList.remove('is-dragging');
+    scrim.classList.remove('is-dragging');
+    scrim.style.opacity = '';
+    if (dy > Math.min(140, height * 0.3) || (v > 0.5 && dy > 12)) closeEditor();
+    // Removing the offset lets the transition carry the sheet from where the finger left it.
     sheet.style.removeProperty('--drag');
-    if (dy > 90) closeEditor();
   };
+  const canStart = () => isMobile() && document.body.classList.contains('editor-open');
+
+  head.addEventListener('pointerdown', (e) => {
+    if (!canStart() || e.target.closest('button') || e.button > 0) return;
+    begin(e.clientY);
+    head.setPointerCapture(e.pointerId);
+  });
+  head.addEventListener('pointermove', (e) => { if (startY !== null) move(e.clientY); });
   head.addEventListener('pointerup', end);
   head.addEventListener('pointercancel', end);
+
+  // Body: scrolling wins until the content is at its top and the finger moves down.
+  let touchY = null;
+  body.addEventListener('touchstart', (e) => {
+    touchY = canStart() && e.touches.length === 1 && body.scrollTop <= 0 ? e.touches[0].clientY : null;
+  }, { passive: true });
+  body.addEventListener('touchmove', (e) => {
+    if (touchY === null) return;
+    const y = e.touches[0].clientY;
+    if (startY === null) {
+      if (y - touchY < 6 || body.scrollTop > 0) { if (y < touchY) touchY = null; return; }
+      begin(y);
+    }
+    e.preventDefault();
+    move(y);
+  }, { passive: false });
+  const touchEnd = () => { touchY = null; end(); };
+  body.addEventListener('touchend', touchEnd);
+  body.addEventListener('touchcancel', touchEnd);
 }
 
 function closeEditor() {
@@ -168,10 +219,13 @@ function bump(el, value) {
 }
 
 function initTopbar(exportDlg) {
-  const name = $('#projectName');
-  name.value = store.project.name;
-  name.addEventListener('input', () => actions.setProject(store, 'name', name.value.slice(0, 120) || 'Без названия', true));
-  name.addEventListener('keydown', (e) => { if (e.key === 'Enter') name.blur(); });
+  // The top-bar field on desktop and the one in the project menu on phones.
+  const names = $$('[data-project-name]');
+  names.forEach((name) => {
+    name.value = store.project.name;
+    name.addEventListener('input', () => actions.setProject(store, 'name', name.value.slice(0, 120) || 'Без названия', true));
+    name.addEventListener('keydown', (e) => { if (e.key === 'Enter') name.blur(); });
+  });
 
   const undo = $('#undoBtn'), redo = $('#redoBtn');
   undo.addEventListener('click', () => store.undo());
@@ -188,7 +242,7 @@ function initTopbar(exportDlg) {
     $('#stickersTabCount').textContent = store.project.stickers.length || '';
     undo.disabled = !store.canUndo;
     redo.disabled = !store.canRedo;
-    if (document.activeElement !== name) name.value = store.project.name;
+    names.forEach((name) => { if (document.activeElement !== name) name.value = store.project.name; });
     $('#statErrors').hidden = !sheet.errors.length;
   };
   sync();
@@ -201,10 +255,12 @@ function initTopbar(exportDlg) {
     const open = menu.hidden;
     menu.hidden = !open;
     menuBtn.setAttribute('aria-expanded', String(open));
-    if (open) menu.querySelector('button').focus();
+    // Focusing the name field on phones would pop the keyboard up uninvited.
+    if (open) menu.querySelector('button').focus({ preventScroll: true });
   });
   document.addEventListener('click', (e) => { if (!menu.hidden && !e.target.closest('#projectMenu, #menuBtn')) closeMenu(); });
   menu.addEventListener('keydown', (e) => {
+    if (e.target.matches('input')) { if (e.key === 'Enter') closeMenu(); if (e.key !== 'Escape') return; }
     const items = $$('button', menu);
     const i = items.indexOf(document.activeElement);
     if (e.key === 'Escape') { closeMenu(); menuBtn.focus(); }
@@ -324,11 +380,6 @@ async function boot() {
   initAccordions();
   initSegmentedInk();
   initSheetSwipe();
-  // The logo's SMIL "current" sweep is not covered by CSS; pause it for reduced motion.
-  const logoMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const syncLogo = () => { const m = $('.brand__mark'); if (logoMotion.matches) m.pauseAnimations(); else m.unpauseAnimations(); };
-  syncLogo();
-  logoMotion.addEventListener('change', syncLogo);
 
   on($('#tabs'), 'click', '.tab[data-tab]', (e, el) => {
     if (store.ui.leftTab === el.dataset.tab) smoothScrollTo($(`#panel-${el.dataset.tab}`), 0);

@@ -204,6 +204,7 @@ export function initAccordions(root = document) {
  */
 export function initSegmentedInk() {
   let raf = 0;
+  const resizer = new ResizeObserver(() => schedule());
   const place = (group) => {
     let ink = group.querySelector(':scope > .segmented__ink');
     const fresh = !ink;
@@ -213,6 +214,8 @@ export function initSegmentedInk() {
       ink.setAttribute('aria-hidden', 'true');
       group.prepend(ink);
       group.classList.add('has-ink');
+      // Width changes without DOM mutations (rotation, font settle, toolbar resize).
+      resizer.observe(group);
     }
     const btn = group.querySelector('.segmented__btn[aria-checked="true"]');
     if (!btn || !btn.offsetWidth) { ink.style.opacity = btn ? ink.style.opacity : '0'; return; }
@@ -220,10 +223,13 @@ export function initSegmentedInk() {
     const wasHidden = ink.dataset.w === '0' || !ink.dataset.w;
     if (wasHidden) ink.classList.add('no-anim');
     ink.style.opacity = '1';
-    ink.style.setProperty('--sx', `${btn.offsetLeft}px`);
-    ink.style.setProperty('--sy', `${btn.offsetTop}px`);
-    ink.style.setProperty('--sw', `${btn.offsetWidth}px`);
-    ink.style.setProperty('--sh', `${btn.offsetHeight}px`);
+    // Fractional geometry: offset* values round to whole pixels, which leaves the
+    // thumb visibly off by a device pixel or two on 3x screens.
+    const g = group.getBoundingClientRect(), b = btn.getBoundingClientRect();
+    ink.style.setProperty('--sx', `${b.left - g.left - group.clientLeft}px`);
+    ink.style.setProperty('--sy', `${b.top - g.top - group.clientTop}px`);
+    ink.style.setProperty('--sw', `${b.width}px`);
+    ink.style.setProperty('--sh', `${b.height}px`);
     ink.dataset.w = String(btn.offsetWidth);
     if (fresh || wasHidden) requestAnimationFrame(() => requestAnimationFrame(() => ink.classList.remove('no-anim')));
   };

@@ -43,8 +43,8 @@ export function initSheetSettings(ctx) {
       <summary class="section__head">${icon('library', { size: 16 })}<span>Раскладка</span>${icon('chevronDown', { size: 16, cls: 'section__caret' })}</summary>
       <div class="section__body">
         <div class="grid-2">
-          ${lengthField({ path: 'layout.gapX', label: 'Промежуток по горизонтали', min: LIMITS.gap[0], max: LIMITS.gap[1] })}
-          ${lengthField({ path: 'layout.gapY', label: 'Промежуток по вертикали', min: LIMITS.gap[0], max: LIMITS.gap[1] })}
+          ${lengthField({ path: 'layout.gapX', label: 'Между столбцами', min: LIMITS.gap[0], max: LIMITS.gap[1] })}
+          ${lengthField({ path: 'layout.gapY', label: 'Между рядами', min: LIMITS.gap[0], max: LIMITS.gap[1] })}
         </div>
         ${segmented({ path: 'layout.strategy', label: 'Раскладка', options: [{ value: 'grid', label: 'Для резки', aria: 'Для резки: ровные ряды одной высоты, сквозные линии' }, { value: 'compact', label: 'Плотно', aria: 'Плотно: сортировка по размеру' }, { value: 'order', label: 'По списку', aria: 'В порядке списка наклеек' }] })}
         <p class="note" id="strategyNote"></p>
@@ -58,7 +58,7 @@ export function initSheetSettings(ctx) {
       <summary class="section__head">${icon('scissors', { size: 16 })}<span>Линии реза</span>${icon('chevronDown', { size: 16, cls: 'section__caret' })}</summary>
       <div class="section__body">
         ${switchField({ path: 'cutLines.enabled', label: 'Печатать линии реза', hint: 'Отдельный слой поверх наклеек, не зависит от рамки' })}
-        <div data-show-if="cutLines.enabled=true">
+        <div class="section__group" data-show-if="cutLines.enabled=true">
           ${switchField({ path: 'cutLines.extend', label: 'Продлевать до краёв листа', hint: 'Сквозные линии между рядами и метки на полях: удобно прикладывать линейку' })}
           ${segmented({ path: 'cutLines.style', label: 'Тип линии', options: [{ value: 'solid', label: 'Сплошная' }, { value: 'dashed', label: 'Пунктир' }] })}
           <div class="grid-2">

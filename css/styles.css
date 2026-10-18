@@ -138,9 +138,9 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { box-shadow: 
   background: var(--bg);
   min-width: 0;
 }
-.brand { display: flex; align-items: center; gap: 10px; flex: none; }
-.brand__mark { display: block; }
-.brand__name { font-weight: 700; font-size: var(--fs-lg); letter-spacing: -0.01em; }
+.brand { display: flex; align-items: center; gap: 8px; flex: none; }
+.brand__mark { display: block; flex: none; width: 28px; height: 28px; }
+.brand__name { font-size: 1.25rem; }
 .project-name { flex: 0 1 280px; min-width: 0; border-left: 1px solid var(--line); padding-left: 12px; }
 .project-name__input {
   width: 100%; min-width: 0; height: 34px; padding: 0 12px;
@@ -276,8 +276,12 @@ body.is-loading .app-loading { display: flex; }
   .app { display: flex; flex-direction: column; height: 100dvh; }
 
   .topbar { flex: none; position: relative; z-index: var(--z-sticky); height: var(--topbar-h); gap: 8px; padding: 0 8px 0 12px; }
-  .brand__name { display: none; }
-  .project-name { border-left: 0; padding-left: 0; flex: 1 1 auto; }
+  .brand { gap: 6px; }
+  .brand__mark { width: 26px; height: 26px; }
+  .brand__name { font-size: 1.125rem; }
+  .project-name { display: none; }
+  .topbar-actions { margin-left: auto; }
+  .menu { min-width: min(300px, calc(100vw - 24px)); }
   .topbar-stats { display: none; }
 
 
@@ -300,12 +304,17 @@ body.is-loading .app-loading { display: flex; }
     position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-sheet);
     max-height: 88dvh; border: 1px solid var(--line-strong); border-bottom: 0;
     border-radius: var(--r-lg) var(--r-lg) 0 0; background: var(--surface);
-    transform: translateY(105%); visibility: hidden;
-    transition: transform 240ms var(--ease), visibility 0s linear 240ms;
+    transform: translate3d(0, 105%, 0); visibility: hidden;
+    transition: transform 260ms var(--ease), visibility 0s linear 260ms;
+    /* Always its own compositor layer: promoting it only when a drag starts repaints
+       the whole sheet on the first frame, which flashed on iOS. */
+    will-change: transform; -webkit-backface-visibility: hidden; backface-visibility: hidden;
     box-shadow: var(--shadow-pop);
     padding-bottom: env(safe-area-inset-bottom);
   }
-  body.editor-open .inspector { transform: translateY(var(--drag, 0px)); visibility: visible; transition: transform 300ms var(--ease-out); }
+  /* Skirt under the sheet: pulling it up never opens a gap at the screen edge. */
+  .inspector::after { content: ""; position: absolute; left: -1px; right: -1px; top: 100%; height: 48px; background: var(--surface); border: solid var(--line-strong); border-width: 0 1px; }
+  body.editor-open .inspector { transform: translate3d(0, var(--drag, 0px), 0); visibility: visible; transition: transform 340ms var(--ease-out); }
   .inspector__head { position: relative; height: 56px; padding-top: 6px; }
   .sheet-handle { display: block; position: absolute; top: 6px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--line-strong); }
   .inspector .inspector__close { display: inline-flex; }
