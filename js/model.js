@@ -50,7 +50,7 @@ export function defaultPage() {
 /** @returns {LayoutSettings} */
 export function defaultLayout() {
   return {
-    margins: { top: 10, right: 10, bottom: 10, left: 10 },
+    margins: { top: 7, right: 7, bottom: 7, left: 7 },
     gapX: 0,
     gapY: 0,
     allowRotate: false,

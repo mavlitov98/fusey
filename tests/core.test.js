@@ -116,10 +116,18 @@ test('long text shrinks, then reports overflow at the minimum size', async () =>
 function projectWith(stickers, layout = {}, page = {}) {
   const p = createProject();
   p.stickers = stickers;
-  p.layout = { ...p.layout, center: false, ...layout };
+  // Geometry below is computed for 10 mm margins, independent of the defaults.
+  p.layout = { ...p.layout, center: false, margins: { top: 10, right: 10, bottom: 10, left: 10 }, ...layout };
   p.page = { ...p.page, ...page };
   return p;
 }
+
+test('default margins fit 11 DIN modules per A4 row', () => {
+  const p = createProject();
+  p.stickers = [createSticker(null, { width: 17.5, height: 50, quantity: 11 })];
+  const L = computeLayout(p);
+  assert.equal(new Set(L.pages[0].items.map((i) => i.y)).size, 1);
+});
 
 test('grid packing places exact positions on A4', () => {
   const p = projectWith([createSticker(null, { width: 40, height: 15, quantity: 4 })], { gapX: 2, gapY: 3 });
